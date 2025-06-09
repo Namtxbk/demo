@@ -15,23 +15,24 @@ public class ORAAPDRoute extends RouteBuilder {
 
     @Override
     public void configure() throws Exception {
-//        from("quartz://myGroup/myTimerName?cron=0+0+0+*+*+?")
-        from("timer://invoiceItemTimer?repeatCount=1")
+
+                //        from("timer://invoiceItemTimer?repeatCount=1")
+                from("quartz://myGroup/ORAAPD?cron=0+0+0+*+*+?")
                 .setBody(constant(
                         "SELECT ii.*, i.invoice_date, i.from_party_id, i.to_party_id, i.product_store_id, i.currency_uom_id " +
                                 "FROM invoice_item ii " +
                                 "JOIN invoice i ON ii.invoice_id = i.invoice_id " +
                                 "JOIN party_role pr ON i.to_party_id = pr.party_id " +
-                                "WHERE pr.role_type_id = 'OrgInternal' "
-                                 +"LIMIT 1"
-//                                "+ AND i.last_updated_stamp::date = CURRENT_DATE"
+                                "WHERE pr.role_type_id = 'OrgInternal' "+
+                                "AND i.last_updated_stamp::date = CURRENT_DATE"
 
                 ))
                 .to("jdbc:dataSource")
                 .process(this::mapToOraapdFormat)
                 .marshal().json()
-                .log("Sent payload to ORAAPD endpoint: ${body}");
-        // .to(endpoint);
+                .log("Sent payload to ORAAPD endpoint: ${body}")
+                .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
+                .toD(endpoint + "/oraapd");
     }
 
     private void mapToOraapdFormat(Exchange exchange) {

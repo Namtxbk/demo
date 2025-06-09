@@ -16,20 +16,22 @@ public class ORAAPHRoute extends RouteBuilder {
 
     @Override
     public void configure() throws Exception {
-//        from("quartz://myGroup/myTimerName?cron=0+0+0+*+*+?")
-        from("timer://invoiceTimer?repeatCount=1")
+        from("quartz://myGroup/ORAAPH?cron=0+0+0+*+*+?")
+      // from("timer://invoiceTimer?repeatCount=1")
                 .setBody(constant(
                         "SELECT i.* " +
                                 "FROM invoice i " +
                                 "JOIN party_role pr ON i.to_party_id = pr.party_id " +
                                 "WHERE pr.role_type_id = 'OrgInternal' " +
-                                "LIMIT 1"
-                )) //WHERE i.last_updated_stamp::date = CURRENT_DATE
+                               " AND i.last_updated_stamp::date = CURRENT_DATE"
+
+                )) //
                 .to("jdbc:dataSource")
                 .process(this::mapToOraaphFormat)
                 .marshal().json()
-                .log("Sent payload to ORAAPH endpoint: ${body}");
-//                .to(endpoint);
+                .log("Sent payload to ORAAPH endpoint: ${body}")
+                .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
+                .toD(endpoint + "/oraaph");
     }
 
     private void mapToOraaphFormat(Exchange exchange) {
