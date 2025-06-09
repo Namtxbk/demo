@@ -38,7 +38,6 @@ public class ORATRNRoute extends RouteBuilder {
             JOIN acctg_trans_entry ate ON at.acctg_trans_id = ate.acctg_trans_id
             LEFT JOIN gl_account ga ON ate.gl_account_id = ga.gl_account_id
             WHERE at.transaction_date::date = CURRENT_DATE
-            LIMIT 1
         """))
                 .to("jdbc:dataSource")
                 .process(this::mapToOratrnFormat)
