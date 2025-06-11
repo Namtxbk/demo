@@ -34,8 +34,8 @@ public class ORATRNRoute extends RouteBuilder {
                 ate.gl_account_id,
                 ate.debit_credit_flag,
                 ate.amount
-            FROM acctg_trans at
-            JOIN acctg_trans_entry ate ON at.acctg_trans_id = ate.acctg_trans_id
+            FROM  acctg_trans_entry ate
+            JOIN acctg_trans at ON at.acctg_trans_id = ate.acctg_trans_id
             LEFT JOIN gl_account ga ON ate.gl_account_id = ga.gl_account_id
             WHERE at.transaction_date::date = CURRENT_DATE
         """))
@@ -44,7 +44,10 @@ public class ORATRNRoute extends RouteBuilder {
                 .marshal().json()
                 .log("Sent payload to ORATRN Data: ${body}")
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
-                .toD(endpoint + "/oratrn");
+                .toD(endpoint + "/oratrn")
+                .log(" ORATRN: Server trả về: ${body}");
+
+
     }
 
     private void mapToOratrnFormat(Exchange exchange) {
@@ -59,8 +62,7 @@ public class ORATRNRoute extends RouteBuilder {
             Map<String, Object> oratrnEntry = new LinkedHashMap<>();
 
             Date transDate = (Date) row.get("transaction_date");
-           oratrnEntry.put("ITFFIL", "II100190724.0000001");
-
+            oratrnEntry.put("ITFFIL", "II100190724.0000001");
             oratrnEntry.put("ITFLAG", mapIsPost( (String) row.get("is_posted")));
             oratrnEntry.put("ITHCOD", row.get("amount_uom_id"));
             oratrnEntry.put("ITRLTP", "W");

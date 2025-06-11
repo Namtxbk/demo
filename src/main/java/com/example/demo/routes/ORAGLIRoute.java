@@ -3,10 +3,11 @@ package com.example.demo.routes;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
-
+@Component
 public class ORAGLIRoute extends RouteBuilder {
 
 
@@ -15,53 +16,70 @@ public class ORAGLIRoute extends RouteBuilder {
 
     @Override
     public void configure() throws Exception {
-        from("quartz://myGroup/ORAGLI?cron=0+0+0+*+*+?")
-
-//        from("timer://salesAuditTimer?repeatCount=1")
+             from("quartz://myGroup/ORAGLI?cron=0+0+0+*+*+?")
+      //  from("timer://ORAGLIRoute?repeatCount=1")
                 .setBody(constant(
                         "SELECT " +
-                                "  order_id, " +
-                                "  grand_total, " +
-                                "  entry_date, " +
-                                "  product_store_id, " +
-                                "  salesman_party_id " +
-                                "FROM order_header oh "
-                                +   " WHERE oh.last_updated_stamp::date = CURRENT_DATE"
+                                "    ate.acctg_trans_id as ITFBCH, " +
+                                "    at.description AS ITFDSC, " +
+                                "    at.acctg_trans_id AS  ITFJRN , " +
+                                "    ate.description AS  ITFJRD , " +
+                                "    at.transaction_date AS  ITFACD , " +
+                                "    at.acctg_trans_type_enum_id AS  ITFCTN , " +
+                                "    ga.gl_account_id AS  ITFGLM , " +
+                                "    ate.amount AS  ITFAMT , " +
+                                "    ate.acctg_trans_entry_seq_id AS  ITFJEN , " +
+                                "    ate.description AS  ITFJLD  " +
+                                "FROM  " +
+                                "    acctg_trans at " +
+                                "    INNER JOIN acctg_trans_entry ate ON at.acctg_trans_id = ate.acctg_trans_id " +
+                                "    LEFT JOIN gl_journal gj ON at.gl_journal_id = gj.gl_journal_id " +
+                                "    LEFT JOIN gl_account ga ON ate.gl_account_id = ga.gl_account_id " +
+                                " at.transaction_date := ::date = CURRENT_DATE "
+
                 ))
                 .to("jdbc:dataSource")
-                .process(this::mapToOraarriFormat)
+                .log(" ORAGLI SQL tra ve: ${body}")
+                .process(this::mapToOragliFormat)
                 .marshal().json()
-                .log("Sent payload to ORAARRI endpoint: ${body}")
+                .log("Sent payload to ORAGLIRoute endpoint: ${body}")
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
-                .toD(endpoint + "/oraarri");    }
+                .toD(endpoint + "/oragli")
+                .log(" ORAGLI: Server trả về: ${body}");
+
+    }
 
 
-
-    private void mapToOraarriFormat(Exchange exchange) {
+    private void mapToOragliFormat(Exchange exchange) {
         List<Map<String, Object>> rawList = exchange.getIn().getBody(List.class);
-        List<Map<String, Object>> oraarriList = new ArrayList<>();
+        List<Map<String, Object>> oragliList = new ArrayList<>();
 
         for (Map<String, Object> row : rawList) {
-            Map<String, Object> oraarri = new LinkedHashMap<>();
+            Map<String, Object> oragli = new LinkedHashMap<>();
 
-            oraarri.put("ITFFIL", "RR100250724.0000001");
-            oraarri.put("ITFTRN", generateTransactionId(row.get("product_store_id"), row.get("order_date")));
-            oraarri.put("ITFAMT", row.get("grand_total"));              // Amount
-            oraarri.put("ITFDTE", formatDate(row.get("entry_date")));   // Transaction date
-            oraarri.put("ITFTYP", "CA");                                 // Static type
-            oraarri.put("ITFCUS", 0);                                    // Hardcoded customer ID
-            oraarri.put("ITFMDT", formatDate(row.get("entry_date")));   // Due date
-            oraarri.put("ITFSEQ", 1);                                    // Sequence
-            oraarri.put("ITFGCO", 100);                                  // GL code
-            oraarri.put("ITFDOC", row.get("RIGHT(order_id, 5)"));        // Document number
-            oraarri.put("ITFSTR", row.get("product_store_id"));         // Store
-            oraarri.put("ITFTIL", row.get("salesman_party_id"));        // TIL
+            oragli.put("ITFFIL", "GL100240724.0000001");   // MMS File
+            oragli.put("ITFBCH", row.get("itfbch"));       // Batch name
+            oragli.put("ITFDSC", row.get("itfdsc"));       // Batch description
+            oragli.put("ITFJRN", row.get("itfjrn"));       // Journal name
+            oragli.put("ITFJRD", row.get("itfjrd"));       // Journal description
+            oragli.put("ITFACD", formatDate(row.get("itfacd"))); // Accounting date
+            oragli.put("ITFCTN", row.get("itfctn"));       // Category name
+            oragli.put("ITFGLC", "");                      // Segment: Company
+            oragli.put("ITFGLM", "");                      // Segment: Account
+            oragli.put("ITFDEP", "");                      // Segment: Department
+            oragli.put("ITFSTR", "");                      // Segment: Store
+            oragli.put("ITFAMT", row.get("itfamt"));       // Amount
+            oragli.put("ITFJEN", row.get("itfjen"));       // Journal Entry Line
+            oragli.put("ITFJLD", row.get("itfjld"));       // Journal Line Description
+            oragli.put("ITFREF", "");       // Reference Number
 
-            oraarriList.add(oraarri);
+
+            oragliList.add(oragli);
         }
 
-        exchange.getIn().setBody(oraarriList);
+        exchange.getIn().setBody(oragliList);
     }
+
 
     private String formatDate(Object dateObj) {
         if (dateObj == null) return "";
@@ -72,24 +90,5 @@ public class ORAGLIRoute extends RouteBuilder {
     }
 
 
-    private String generateTransactionId(Object storeIdObj, Object dateObj) {
-        String storeIdStr = "00000";
-        if (storeIdObj != null) {
-            String storeId = storeIdObj.toString();
-            if (storeId.length() >= 5) {
-                storeIdStr = storeId.substring(storeId.length() - 5);
-            } else {
-                storeIdStr = String.format("%5s", storeId).replace(' ', '0');
-            }
-        }
-
-        String dateStr = "";
-        if (dateObj instanceof Date) {
-            dateStr = new SimpleDateFormat("yyyyMMdd").format((Date) dateObj);
-        } else if (dateObj != null) {
-            dateStr = dateObj.toString();
-        }
-
-        return "CA." + storeIdStr + "." + dateStr;
-    }
+    
 }

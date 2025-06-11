@@ -25,14 +25,15 @@ public class ORAAPDRoute extends RouteBuilder {
                                 "JOIN party_role pr ON i.to_party_id = pr.party_id " +
                                 "WHERE pr.role_type_id = 'OrgInternal' "+
                                 "AND i.last_updated_stamp::date = CURRENT_DATE"
-
                 ))
                 .to("jdbc:dataSource")
                 .process(this::mapToOraapdFormat)
                 .marshal().json()
                 .log("Sent payload to ORAAPD endpoint: ${body}")
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
-                .toD(endpoint + "/oraapd");
+                .toD(endpoint + "/oraapd")
+                .log(" ORAAPD: Server trả về: ${body}");
+
     }
 
     private void mapToOraapdFormat(Exchange exchange) {
@@ -42,7 +43,7 @@ public class ORAAPDRoute extends RouteBuilder {
         for (Map<String, Object> item : itemList) {
             Map<String, Object> oraapd = new LinkedHashMap<>();
 
-            oraapd.put("ITFFIL", "PH" + new SimpleDateFormat("yyMMdd").format(new Date()) + ".0000001");
+            oraapd.put("ITFFIL", "PD100200724.0000001");
             oraapd.put("ITFPFN", "ITFAPD");                              // Fix cứng
             oraapd.put("ITFMBR", item.get("external_id"));              // Chua ro tam lay external_id
             oraapd.put("ITFINV", item.get("invoice_id"));               // Số hóa đơn

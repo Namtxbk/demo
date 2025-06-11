@@ -34,7 +34,9 @@ public class ORAARRIRoute extends RouteBuilder {
                 .marshal().json()
                 .log("Sent payload to ORAARRI endpoint: ${body}")
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
-                .toD(endpoint + "/oraarri");    }
+                .toD(endpoint + "/oraarri")
+                .log(" ORAARRI: Server trả về: ${body}");
+    }
 
 
 

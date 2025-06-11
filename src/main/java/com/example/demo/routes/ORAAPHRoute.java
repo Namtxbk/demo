@@ -31,7 +31,9 @@ public class ORAAPHRoute extends RouteBuilder {
                 .marshal().json()
                 .log("Sent payload to ORAAPH endpoint: ${body}")
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
-                .toD(endpoint + "/oraaph");
+                .toD(endpoint + "/oraaph")
+                .log(" ORAAPH: Server trả về: ${body}");
+
     }
 
     private void mapToOraaphFormat(Exchange exchange) {
@@ -42,7 +44,7 @@ public class ORAAPHRoute extends RouteBuilder {
             Map<String, Object> oraaph = new LinkedHashMap<>();
 
             // Cột ánh xạ từ Invoice sang ORAAPH
-            oraaph.put("ITFFIL", "PH" + new SimpleDateFormat("yyMMdd").format(new Date()) + ".0000001");
+            oraaph.put("ITFFIL", "PH100270624.0000001");
             oraaph.put("ITFPFN", "ITFAPH");                              // Fix cứng
             oraaph.put("ITFMBR", invoice.get("external_id"));           // Không rõ, tạm lấy external_id
             oraaph.put("ITFINV", invoice.get("invoice_id"));            // Số hóa đơn
